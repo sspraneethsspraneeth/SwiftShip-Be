@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema(
     dob: String,
     phone: String,
     gender: String,
-    image: String, // Base64 image
+    image: String, 
     location: {
       latitude: Number,
       longitude: Number,

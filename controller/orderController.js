@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
 const User = require('../models/User'); // Add if not already imported
 const getCoordinates = require('../utils/getCoordinates');
+const Notification = require('../models/Notification'); // ✅ Import Notification model
 
 
 
@@ -28,6 +29,8 @@ const generateOrderId = async () => {
   return `ORD${String(nextIdNum).padStart(3, '0')}`;
 };
 
+
+
 exports.createOrder = async (req, res) => {
   try {
     const {
@@ -45,30 +48,16 @@ exports.createOrder = async (req, res) => {
       notes,
     } = req.body;
 
-    // ✅ Validate input
-    if (
-      !senderName || !senderPhone || !receiverName || !receiverPhone ||
-      !deliveryAddress || !packageType || !weight || !pickupDate || !timeSlot
-    ) {
-      return res.status(400).json({ message: 'Missing required fields' });
-    }
+    // Find user by sender phone
+    const user = await User.findOne({ phone: senderPhone });
 
-    // ✅ Fetch coordinates using LocationIQ
     const coordinates = await getCoordinates(deliveryAddress);
-    if (!coordinates) {
-      return res.status(400).json({ message: 'Could not fetch coordinates for the given address' });
-    }
-
-    // ✅ Cost calculation
     const cost = calculateCost(weight, deliveryType);
     const insurance = 20;
     const gst = 0.18 * cost;
     const totalAmount = cost + insurance + gst;
-
-    // ✅ Generate order ID
     const orderId = await generateOrderId();
 
-    // ✅ Create order document
     const order = new Order({
       orderId,
       senderName,
@@ -85,11 +74,19 @@ exports.createOrder = async (req, res) => {
       notes,
       cost,
       totalAmount: totalAmount.toFixed(0),
-      location: coordinates, // ✅ Save lat/lon here
+      location: coordinates,
     });
 
-    // ✅ Save to database
     await order.save();
+
+    // ✅ Store notification in DB with userId
+    await Notification.create({
+      userId: user ? user._id : null, // if user is found, store their _id
+      title: 'New Order Created',
+      message: `Order ${order.orderId} has been placed successfully.`,
+      type: 'order'
+    });
+
     res.status(201).json({ message: 'Order created successfully', order });
 
   } catch (err) {
@@ -97,6 +94,8 @@ exports.createOrder = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+
 
 exports.getOrderById = async (req, res) => {
   try {

@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const VerificationCode = require('../models/VerificationCode');
-const Order = require('../models/Order'); 
+const Order = require('../models/Order');
+const Notification = require('../models/Notification');
+
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
@@ -38,6 +40,21 @@ const sendVerificationCode = async (email) => {
 
   await transporter.sendMail(mailOptions);
 };
+// Helper to create notification
+const createNotification = async (userId, title, message, type) => {
+  try {
+    const notification = new Notification({
+      userId,
+      title,
+      message,
+      type, // e.g., 'info', 'success', 'warning'
+    });
+    await notification.save();
+  } catch (err) {
+    console.error("Notification creation failed:", err);
+  }
+};
+
 
 // ✅ Generate unique customerId
 const generateCustomerId = async () => {
@@ -99,6 +116,7 @@ const verifyCode = async (req, res) => {
 };
 
 // ✅ Register user (with customerId)
+// ✅ Register user (with customerId)
 const registerUser = async (req, res) => {
   const { email, password, code } = req.body;
 
@@ -142,6 +160,15 @@ const registerUser = async (req, res) => {
     });
 
     await user.save();
+
+    // ✅ Create notification
+    await createNotification(
+      user._id,
+      "Welcome to SwiftShip",
+      `Your account (${email}) has been successfully registered.`,
+      "registration"
+    );
+
     res.status(201).json({ message: 'User registered successfully', customerId });
 
   } catch (err) {
@@ -149,6 +176,7 @@ const registerUser = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
 
 
 // ✅ Login user
@@ -178,6 +206,14 @@ const loginUser = async (req, res) => {
     user.tokens.push(token);
     await user.save();
 
+    // ✅ Create notification
+    await createNotification(
+      user._id,
+      "Login Successful",
+      `You have logged in to your account.`,
+       "login"
+    );
+
     res.status(200).json({
       message: 'Login successful',
       token,
@@ -191,6 +227,7 @@ const loginUser = async (req, res) => {
     res.status(500).json({ message: 'Login error' });
   }
 };
+
 
 // ✅ Update user profile
 const updateUserProfile = async (req, res) => {
@@ -208,6 +245,12 @@ const updateUserProfile = async (req, res) => {
     user.image = image || user.image;
 
     await user.save();
+    await createNotification(
+      user._id,
+      "profile update",
+      `Your account (${email}) has been successfully updated.`,
+      "registration"
+    );
     res.status(200).json({ message: 'Profile updated', user });
   } catch (err) {
     console.error('Update profile error:', err);
@@ -295,12 +338,21 @@ const resetPassword = async (req, res) => {
     user.password = hashedPassword;
     await user.save();
 
+    // ✅ Create notification
+    await createNotification(
+      user._id,
+      "Password Reset",
+      `Your account password has been successfully reset.`,
+       "forgot-password"
+    );
+
     res.status(200).json({ message: 'Password reset successful' });
   } catch (err) {
     console.error('Reset error:', err);
     res.status(500).json({ message: 'Server error during password reset' });
   }
 };
+
 
 // ✅ Get user by email
 const getUserByEmail = async (req, res) => {
@@ -373,6 +425,74 @@ const getCustomerById = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+const googleLogin = async (req, res) => {
+  const { email, fullName, image } = req.body;
+  if (!email) return res.status(400).json({ message: "Email is required" });
+
+  try {
+    let user = await User.findOne({ email });
+
+    // 🔁 Convert image to Base64
+    const base64Image = await convertImageToBase64(image);
+
+    if (!user) {
+      const customerId = await generateCustomerId();
+      user = new User({
+        email,
+        fullName,
+        image: base64Image,
+        customerId,
+        password: await bcrypt.hash(Math.random().toString(36), 10),
+      });
+      await user.save();
+    } else {
+      // Update the image if it’s missing or outdated
+      if (!user.image || !user.image.startsWith("data:image")) {
+        user.image = base64Image;
+        await user.save();
+      }
+    }
+
+    const token = jwt.sign(
+      { id: user._id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    if (!user.tokens) user.tokens = [];
+    user.tokens.push(token);
+    await user.save();
+
+    res.status(200).json({
+      message: "Google login successful",
+      token,
+      user: {
+        email: user.email,
+        fullName: user.fullName,
+        customerId: user.customerId,
+        image: user.image, // base64 here
+      },
+    });
+  } catch (err) {
+    console.error("Google login error:", err);
+    res.status(500).json({ message: "Google login failed" });
+  }
+};
+
+// 🔧 Helper function to convert image URL to base64
+const convertImageToBase64 = async (url) => {
+  try {
+    const response = await fetch(url);
+    const buffer = await response.buffer();
+    const contentType = response.headers.get("content-type") || "image/jpeg";
+    return `data:${contentType};base64,${buffer.toString("base64")}`;
+  } catch (err) {
+    console.error("Failed to convert image:", err);
+    return null;
+  }
+};
+
+
 
 
 
@@ -389,5 +509,7 @@ module.exports = {
   getUserByEmail,
   getAllCustomers,
   getCustomerById,
+  googleLogin, // ✅ Exported properly
+  createNotification, // ✅ Exported for notification creation
 
 };

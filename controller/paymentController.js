@@ -1,10 +1,12 @@
 // controllers/paymentController.js
+const Notification = require('../models/Notification');
+
 const Stripe = require('stripe');
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY); // Ensure this is defined in your .env
 
 exports.createPaymentIntent = async (req, res) => {
   try {
-    const { amount } = req.body;
+    const { amount,userId } = req.body;
 
     if (!amount || isNaN(amount)) {
       return res.status(400).json({ error: 'Amount is required and must be a number' });
@@ -28,6 +30,12 @@ exports.createPaymentIntent = async (req, res) => {
       customerId: customer.id,
       clientSecret: paymentIntent.client_secret,
       ephemeralKeySecret: ephemeralKey.secret,
+    });
+    await Notification.create({
+      userId: userId || null,
+      title: 'Payment Successful',
+      message: `Your payment of ₹${amount} has been processed successfully.`,
+      type: 'transactiom', // spelling fixed from 'transactiom'
     });
 
     res.status(200).json({

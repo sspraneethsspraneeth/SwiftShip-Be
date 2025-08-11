@@ -11,7 +11,9 @@ const {
   saveUserLocation,
   getUserByEmail,
   getAllCustomers,
-  getCustomerById, // ✅ Imported properly
+  getCustomerById, 
+  googleLogin, 
+  createNotification, // ✅ Added createNotification
 } = require('../controller/authcontroller');
 
 const authMiddleware = require('../middleware/authMiddleware'); // ✅ Consistent naming
@@ -28,6 +30,9 @@ router.get('/user', authMiddleware, getUserByEmail); // ✅ Now correct
 router.post('/api/profile/save', updateUserProfile);
 router.get('/customers', getAllCustomers);
 router.get('/customers/:id', getCustomerById);
+router.post('/google-login', googleLogin);
+router.post('/notification', createNotification); // ✅ Added route for creating notifications
+
 
 
 router.get('/dashboard', authMiddleware, (req, res) => {

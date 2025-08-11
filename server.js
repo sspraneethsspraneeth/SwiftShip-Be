@@ -1,4 +1,6 @@
 const express = require('express');
+const http = require('http');           // <-- add this
+const socketIo = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config();
@@ -26,8 +28,20 @@ const trackingRoutes = require("./routes/trackingRoutes");
 const shipmentRoutes = require('./routes/shipmentRoutes'); // ✅ correct path
 const deliveryRoutes = require("./routes/delivery");
 const scheduleJobs = require("./cron/scheduler");
+const roleRoutes = require('./routes/roleRoutes');
+const companyInfoRoutes = require('./routes/companyInfoRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: {
+    origin: '*',  // Adjust this to your frontend URL for security
+  },
+});
+
+// Make io accessible to routes/controllers via app.set
+app.set('io', io);
 
 
 // ✅ Then use them
@@ -47,6 +61,9 @@ app.use("/api/fleet", fleetRoutes);
 app.use("/api/trackings", trackingRoutes);
 app.use('/api/shipment', shipmentRoutes);
 app.use("/api/deliveries", deliveryRoutes);
+app.use('/api/roles', roleRoutes);
+app.use('/api/company-info', companyInfoRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 
 
