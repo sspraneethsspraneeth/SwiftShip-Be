@@ -31,6 +31,7 @@ const scheduleJobs = require("./cron/scheduler");
 const roleRoutes = require('./routes/roleRoutes');
 const companyInfoRoutes = require('./routes/companyInfoRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const walletRoutes = require('./routes/walletRoutes');
 
 
 const server = http.createServer(app);
@@ -42,16 +43,9 @@ const io = socketIo(server, {
 
 // Make io accessible to routes/controllers via app.set
 app.set('io', io);
-
-
-// ✅ Then use them
 app.use('/api', authRoutes);
 app.use('/api', verificationRoutes);
 app.use("/api/staff", staffRoutes);
-
-
-// Payment routes
-
 app.use('/api/payment', paymentRoutes);
 app.use('/api', warehouseRoutes);
 app.use("/api/warehouse-staff", warehouseStaffRoutes);
@@ -64,6 +58,7 @@ app.use("/api/deliveries", deliveryRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/company-info', companyInfoRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/wallet', walletRoutes);
 
 
 
