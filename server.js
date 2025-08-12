@@ -1,5 +1,5 @@
 const express = require('express');
-const http = require('http');           // <-- add this
+const http = require('http');           
 const socketIo = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -25,7 +25,7 @@ const transactionRoutes = require("./routes/transaction");
 const orderRoutes = require('./routes/orderRoutes');
 const fleetRoutes = require('./routes/fleet');
 const trackingRoutes = require("./routes/trackingRoutes");
-const shipmentRoutes = require('./routes/shipmentRoutes'); // ✅ correct path
+const shipmentRoutes = require('./routes/shipmentRoutes'); 
 const deliveryRoutes = require("./routes/delivery");
 const scheduleJobs = require("./cron/scheduler");
 const roleRoutes = require('./routes/roleRoutes');
@@ -36,7 +36,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: '*',  // Adjust this to your frontend URL for security
+    origin: '*',  
   },
 });
 
@@ -72,7 +72,7 @@ app.use('/api/notifications', notificationRoutes);
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('MongoDB connected');
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
     
   })
   .catch(err => console.error(err));
