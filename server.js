@@ -39,6 +39,8 @@ const io = socketIo(server, {
   cors: {
     origin: '*',  
   },
+    transports: ["websocket"], // allow both, WS preferred
+
 });
 
 // Make io accessible to routes/controllers via app.set

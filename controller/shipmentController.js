@@ -22,6 +22,13 @@ exports.generateShipments = async (req, res) => {
     const assignedOrderIds = new Set(); // Track assigned orders
     const shipments = [];
 
+    // ✅ Fetch all existing shipment orders once
+    const existingShipmentOrders = new Set(
+      (await Shipment.find({}, "orders")).flatMap(s =>
+        s.orders.map(id => id.toString())
+      )
+    );
+
     for (const route of routes) {
       const {
         startLatitude: startLat,
@@ -35,11 +42,11 @@ exports.generateShipments = async (req, res) => {
       } = route || {};
 
       if (
-        typeof startLat !== 'number' || typeof startLng !== 'number' ||
-        typeof endLat !== 'number' || typeof endLng !== 'number' ||
-        typeof end !== 'string' || end.trim() === ''
+        typeof startLat !== "number" || typeof startLng !== "number" ||
+        typeof endLat !== "number" || typeof endLng !== "number" ||
+        typeof end !== "string" || end.trim() === ""
       ) {
-        console.warn(`⚠️ Skipping route ${routeId || '(unknown)'} due to missing data`);
+        console.warn(`⚠️ Skipping route ${routeId || "(unknown)"} due to missing data`);
         continue;
       }
 
@@ -51,9 +58,11 @@ exports.generateShipments = async (req, res) => {
           !order.location?.lat ||
           !order.location?.lon ||
           !order.deliveryAddress ||
-          assignedOrderIds.has(order._id.toString())
-        )
+          assignedOrderIds.has(order._id.toString()) ||          // already in this run
+          existingShipmentOrders.has(order._id.toString())       // already in DB
+        ) {
           return false;
+        }
 
         const distance = isWithinRadius.getDistanceFromLatLonInKm(
           order.location.lat,
@@ -70,7 +79,7 @@ exports.generateShipments = async (req, res) => {
       if (matchingOrders.length === 0) continue;
 
       // Update assigned set
-      matchingOrders.forEach((o) => assignedOrderIds.add(o._id.toString()));
+      matchingOrders.forEach(o => assignedOrderIds.add(o._id.toString()));
 
       // Check if shipment already exists
       let shipment = await Shipment.findOne({ routeId, end });
@@ -111,12 +120,13 @@ exports.generateShipments = async (req, res) => {
       shipments.push(shipment);
     }
 
-    res.status(200).json({ message: 'Shipments created or updated', shipments });
+    res.status(200).json({ message: "Shipments created or updated", shipments });
   } catch (err) {
     console.error("❌ Error generating shipments:", err.stack || err);
     res.status(500).json({ message: "Failed to create shipments" });
   }
 };
+
 
 
 exports.getAllShipments = async (req, res) => {
