@@ -2,28 +2,20 @@ const User = require('../models/User');
 const VerificationCode = require('../models/VerificationCode');
 const Order = require('../models/Order');
 const Notification = require('../models/Notification');
+const sendMail = require("../utils/mail"); //  import mail helper
 
 const bcrypt = require('bcryptjs');
-const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
-// ✅ Nodemailer setup
-const transporter = nodemailer.createTransport({
-  service: 'Gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
 
-// ✅ Password strength regex
+// Password strength regex
 const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
 
-// ✅ Generate and send verification code
+//  Generate and send verification code
 const sendVerificationCode = async (email) => {
   const code = Math.random().toString(36).substring(2, 7).toUpperCase();
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 min expiry
 
   await VerificationCode.findOneAndUpdate(
     { email },
@@ -31,15 +23,11 @@ const sendVerificationCode = async (email) => {
     { upsert: true, new: true }
   );
 
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: email,
-    subject: 'Your Verification Code',
-    text: `Your verification code is: ${code}. It will expire in 15 minutes.`,
-  };
+  const text = `Your verification code is: ${code}. It will expire in 15 minutes.`;
 
-  await transporter.sendMail(mailOptions);
+  await sendMail(email, "Your Verification Code", text);
 };
+
 // Helper to create notification
 const createNotification = async (userId, title, message, type) => {
   try {
@@ -56,7 +44,7 @@ const createNotification = async (userId, title, message, type) => {
 };
 
 
-// ✅ Generate unique customerId
+//  Generate unique customerId
 const generateCustomerId = async () => {
   const count = await User.countDocuments();
   const nextNumber = count + 1;
@@ -64,7 +52,7 @@ const generateCustomerId = async () => {
   return `CUST${padded}`;
 };
 
-// ✅ Request verification code
+//  Request verification code
 const requestVerificationCode = async (req, res) => {
   const { email, source } = req.body;
   if (!email) return res.status(400).json({ message: 'Email is required' });
@@ -88,7 +76,7 @@ const requestVerificationCode = async (req, res) => {
   }
 };
 
-// ✅ Verify code
+//  Verify code
 const verifyCode = async (req, res) => {
   const { email, code } = req.body;
   if (!email || !code)
@@ -115,8 +103,7 @@ const verifyCode = async (req, res) => {
   }
 };
 
-// ✅ Register user (with customerId)
-// ✅ Register user (with customerId)
+//  Register user (with customerId)
 const registerUser = async (req, res) => {
   const { email, password, code } = req.body;
 
@@ -161,7 +148,7 @@ const registerUser = async (req, res) => {
 
     await user.save();
 
-    // ✅ Create notification
+    //  Create notification
     await createNotification(
       user._id,
       "Welcome to SwiftShip",
@@ -483,8 +470,8 @@ const googleLogin = async (req, res) => {
 const convertImageToBase64 = async (url) => {
   try {
     const response = await fetch(url);
-    const buffer = await response.buffer();
-    const contentType = response.headers.get("content-type") || "image/jpeg";
+const arrayBuffer = await response.arrayBuffer(); // ✅ new way
+    const buffer = Buffer.from(arrayBuffer);    const contentType = response.headers.get("content-type") || "image/jpeg";
     return `data:${contentType};base64,${buffer.toString("base64")}`;
   } catch (err) {
     console.error("Failed to convert image:", err);
